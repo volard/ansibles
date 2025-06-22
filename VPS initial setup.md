@@ -1,8 +1,10 @@
 # Outline for later
-1. Create new user
+1. Create new user with its home directory
 2. Add it to groups: docker, sudo, adm, systemctl-journal
-3. Update a system
-4. Set up time etc.
-5. Setup ssh and connection
-6. Install basic CLI tools: ranger, (nvim), zsh, fzf
-7. Config zsh to use fzf
+3. Set passoword
+4. Update a system
+5. reboot
+6. Set up time etc.
+7. Setup ssh and connection
+8. Install basic CLI tools: ranger, (nvim), zsh, fzf
+9. Config zsh to use fzf
