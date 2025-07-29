@@ -6,5 +6,6 @@
 5. reboot
 6. Set up time etc.
 7. Setup ssh and connection
-8. Install basic CLI tools: ranger, (nvim), zsh, fzf
-9. Config zsh to use fzf
+8. Install basic CLI tools: ranger, nvim, zsh, fzf, bat
+9. Install working tools: docker, rsync
+10. Config zsh to use fzf
