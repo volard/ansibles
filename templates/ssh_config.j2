@@ -1,0 +1,42 @@
+# Basic SSH configuration with improved security
+Port 22
+Protocol 2
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO
+
+# Authentication settings
+LoginGraceTime 120
+PermitRootLogin prohibit-password
+StrictModes yes
+MaxAuthTries 6
+MaxSessions 10
+
+# Allow only specific users if needed
+# AllowUsers {{ new_username }}
+
+# Enable public key authentication
+PubkeyAuthentication yes
+
+# Disable password authentication (uncomment after setting up keys)
+# PasswordAuthentication no
+# PermitEmptyPasswords no
+
+# Additional security settings
+IgnoreRhosts yes
+HostbasedAuthentication no
+PermitUserEnvironment no
+X11Forwarding no
+PrintMotd no
+TCPKeepAlive yes
+UseDNS no
+
+# Allow client to pass locale environment variables
+AcceptEnv LANG LC_*
+
+# Override default of no subsystems
+Subsystem sftp /usr/lib/openssh/sftp-server

@@ -1,0 +1,182 @@
+---
+- name: Setup new VPS
+  hosts: vps
+  become: yes
+  vars:
+    new_username: admin
+    timezone: "UTC"
+  
+  tasks:
+    - name: Create new user with home directory
+      user:
+        name: "{{ new_username }}"
+        shell: /bin/bash
+        create_home: yes
+        state: present
+      register: user_created
+
+    - name: Install docker repository dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Ensure required groups exist
+      group:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - docker
+        - systemd-journal
+
+    - name: Add user to required groups
+      user:
+        name: "{{ new_username }}"
+        groups: docker,sudo,adm,systemd-journal
+        append: yes
+
+    - name: Set password for new user
+      user:
+        name: "{{ new_username }}"
+        password: "{{ 'your_password_here' | password_hash('sha512') }}"  # Replace with your password
+
+    - name: Update system packages
+      apt:
+        upgrade: dist
+        update_cache: yes
+
+    - name: Set timezone
+      timezone:
+        name: "{{ timezone }}"
+
+    - name: Configure NTP for time synchronization
+      apt:
+        name: systemd-timesyncd
+        state: present
+
+    - name: Ensure timesyncd is enabled and running
+      systemd:
+        name: systemd-timesyncd
+        enabled: yes
+        state: started
+
+    - name: Install SSH server
+      apt:
+        name: openssh-server
+        state: present
+
+    - name: Configure SSH server
+      template:
+        src: templates/sshd_config.j2
+        dest: /etc/ssh/sshd_config
+        mode: '0644'
+      notify: Restart SSH
+
+    - name: Install basic CLI tools
+      apt:
+        name:
+          - ranger
+          - neovim
+          - zsh
+          - fzf
+          - bat
+          - ripgrep
+          - git
+        state: present
+
+    - name: Install btop
+      apt:
+        name: btop
+        state: present
+      failed_when: false
+
+    - name: Clone btop repository if package install failed
+      git:
+        repo: https://github.com/aristocratos/btop.git
+        dest: /tmp/btop
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+      failed_when: false
+
+    - name: Build and install btop from source
+      shell: |
+        cd /tmp/btop
+        make
+        make install
+      args:
+        creates: /usr/local/bin/btop
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+      failed_when: false
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Install rsync
+      apt:
+        name: rsync
+        state: present
+
+    - name: Set ZSH as default shell for new user
+      user:
+        name: "{{ new_username }}"
+        shell: /bin/zsh
+
+    - name: Install Oh My Zsh
+      become: yes
+      become_user: "{{ new_username }}"
+      shell: curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | sh
+      args:
+        creates: "/home/{{ new_username }}/.oh-my-zsh"
+
+    - name: Configure ZSH to use FZF
+      become: yes
+      become_user: "{{ new_username }}"
+      blockinfile:
+        path: "/home/{{ new_username }}/.zshrc"
+        block: |
+          # FZF configuration
+          [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+          # FZF keybindings and completion
+          export FZF_DEFAULT_COMMAND='rg --files --no-ignore --hidden --follow --glob "!.git/*"'
+          export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
+          export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+
+          # Aliases for convenience
+          alias cat='batcat --style=plain'
+          alias ll='ls -la'
+
+    - name: Set up FZF for the new user
+      become: yes
+      become_user: "{{ new_username }}"
+      shell: |
+        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+        ~/.fzf/install --all
+      args:
+        creates: "/home/{{ new_username }}/.fzf"
+
+    - name: Reboot the system
+      reboot:
+        reboot_timeout: 300
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted
